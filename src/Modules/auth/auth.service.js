@@ -29,9 +29,10 @@ export const register = async (req, res, next) => {
         dob
     });
     //generateotp
-    const { otp, otpExpire } = generateOtp();
+    //make expire duration 2 minutes
+    const {otp,hashOtp, otpExpire } = generateOtp(2 * 60 * 1000);
     //update user
-    user.otp = otp;
+    user.otp = hashOtp;
     user.otpExpire = otpExpire;
     //sendmail
     if (email) {
@@ -52,14 +53,33 @@ export const verifyAccount = async (req, res, next) => {
     //get data from body 
     const { email, otp } = req.body;
     //get user with same mail and otp
-    const user = await User.findOne({ email, otp, otpExpire: { $gt: Date.now() } });
+    const user = await User.findOne({ email });
     if (!user) {
+        throw new Error('no user found with that email', { cause: 401 });
+    }
+    if (!bcrypt.compareSync(otp,user.otp)) {
+        user.failedAttempts ++ ;
+        if( user.failedAttempts==5){
+        user.failedAttemptsExpire=Date.now()+5*60*1000;
+        }
+        await user.save();
         throw new Error('invalid otp', { cause: 401 });
     }
+    if( user.otpExpire < Date.now()){
+       throw new Error('invalid otp', { cause: 401 });
+    }
+    //get user with same  and otp
+    // const user = await User.findOne({ email, otp, otpExpire: { $gt: Date.now() } });
+    // if (!user) {
+
+    //     throw new Error('invalid otp', { cause: 401 });
+    // }
     //set verified to true>>updateUser
     user.isVerified = true;
     user.otp = undefined;
     user.otpExpire = undefined;
+    user.failedAttempts = 0;
+    user.failedAttemptsExpire = undefined;
     await user.save();
     //send response
     return res.status(200).json({ message: 'user is verified', success: true });
@@ -75,12 +95,21 @@ export const resendOtp = async (req, res, next) => {
     if (!existUser) {
         throw new Error('user not found', { cause: 404 });
     }
+    if(existUser.failedAttempts>=5&&existUser.failedAttemptsExpire>Date.now()){
+         throw new Error('you are banned from requesting new code', { cause: 404 });
+    }
+    if(existUser.failedAttemptsExpire<Date.now()){
+      existUser.failedAttempts=0;
+      existUser.failedAttemptsExpire = undefined;  
+    }
     //generata otp
-    const { otp, otpExpire } = generateOtp();
+    const {otp,hashOtp, otpExpire } = generateOtp(2*60*1000);
 
     //update user
-    existUser.otp = otp;
+    existUser.otp = hashOtp;
     existUser.otpExpire = otpExpire;
+    existUser.failedAttempts=0;
+    existUser.failedAttemptsExpire = undefined;  
     await existUser.save();
     //send mail
     sendmail({

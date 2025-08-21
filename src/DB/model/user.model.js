@@ -23,8 +23,8 @@ const schema = new Schema({
     },
     password: {
         type: String,
-        required: function(){
-            if(this.userAgent=='google'){return false;}
+        required: function () {
+            if (this.userAgent == 'google') { return false; }
             return true;
         }
     },
@@ -38,36 +38,43 @@ const schema = new Schema({
     dob: {
         type: Date
     },
-    otp:{
-        type:Number
+    otp: {
+        type: String
     },
-    otpExpire:{
-        type:Date
+    otpExpire: {
+        type: Date
     },
-     changepasswordAt:{
-        type:Date
+    failedAttempts: {
+        type: Number,
+        default:0
     },
-    isVerified:{
-        type:Boolean,
-        default:false
+    failedAttemptsExpire: {
+        type: Date
     },
-    userAgent:{
-        type:String,
-        enum:["local","google"],
-        default:"local"
+    changepasswordAt: {
+        type: Date
     },
-    profilePic:{
-        type:String
+    isVerified: {
+        type: Boolean,
+        default: false
     },
-     cloudprofilePic:{
-        public_id:String,
-        secure_url:String
+    userAgent: {
+        type: String,
+        enum: ["local", "google"],
+        default: "local"
+    },
+    profilePic: {
+        type: String
+    },
+    cloudprofilePic: {
+        public_id: String,
+        secure_url: String
     }
 
 }, {
     timestamps: true,
-    toObject: { virtuals: true  },// to make virtual properties apear in object
-    toJSON:{virtuals:true}// to make virtual properties apear in json
+    toObject: { virtuals: true },// to make virtual properties apear in object
+    toJSON: { virtuals: true }// to make virtual properties apear in json
 });
 schema.virtual('fullName').get(function () {
     return `${this.firstName} ${this.lastName}`
